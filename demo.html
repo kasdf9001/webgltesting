@@ -1,6 +1,7 @@
 <html>
 <head>
 
+    <meta charset="UTF-8">
 
     <script src="./assets/sylvester.js" type="text/javascript"></script>
     <script src="./assets/glUtils.js" type="text/javascript"></script>
@@ -13,14 +14,10 @@
 
         var squareVerticesBuffer;
         var squareVerticesColorBuffer;
-        var squareRotation = 0.0;
+
         var squareXOffset = 0.0;
         var squareYOffset = 0.0;
         var squareZOffset = 0.0;
-        var lastSquareUpdateTime = 0;
-        var xIncValue = 0.2;
-        var yIncValue = -0.4;
-        var zIncValue = 0.3;
 
         var mvMatrix;
         var shaderProgram;
@@ -71,8 +68,26 @@
             initShaders();
             initBuffers();
 
+            initTextures();
+
             setInterval(sceneOne, 15);
 
+        }
+
+        function initTextures() {
+            cubeTexture = gl.createTexture();
+            cubeImage = new Image();
+            cubeImage.onload = function() { handleTextureLoaded(cubeImage, cubeTexture); }
+            cubeImage.src = "./assets/textures/circle-1024.png";
+        }
+
+        function handleTextureLoaded(image, texture) {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+            gl.generateMipmap(gl.TEXTURE_2D);
+            gl.bindTexture(gl.TEXTURE_2D, null);
         }
 
         function initShaders() {
@@ -93,6 +108,10 @@
             }
 
             gl.useProgram(shaderProgram);
+
+            textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aTextureCoord");
+            gl.enableVertexAttribArray(textureCoordAttribute);
+            gl.vertexAttribPointer(textureCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
             vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
             gl.enableVertexAttribArray(vertexColorAttribute);
@@ -139,36 +158,24 @@
             return shader;
         }
 
-        var horizAspect = 480.0 / 640.0;
-
         function sceneOne() {
             drawScene();
         }
 
         function initBuffers() {
-            squareVerticesBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
 
-            var vertices = [
-                1.0, 1.0, 0.0,
-                -1.0, 1.0, 0.0,
-                1.0, -1.0, 0.0,
-                -1.0, -1.0, 0.0
-            ];
+            cubeVerticesTextureCoordBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesTextureCoordBuffer);
 
-            var colors = [
-                0.0, 0.0, 0.0, 1.0,    // white
-                1.0, 0.0, 0.0, 1.0,    // red
-                0.0, 0.0, 0.0, 0.0,    // green
-                0.0, 0.0, 1.0, 1.0     // blue
-            ];
+            var textureCoordinates =
+                    [
+                        0.0, 0.0,
+                        1.0, 0.0,
+                        1.0, 1.0,
+                        0.0, 1.0
+                    ];
 
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-            squareVerticesColorBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
-
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
 
         }
 
@@ -181,16 +188,16 @@
             mvTranslate([-0.0, 0.0, -6.0]);
 
             // Calculate rotation
-            var squareRotation = 0.0;
-            var currentTime = Date.now();
-            var lastSquareUpdateTime = 1;
-            var delta = currentTime - lastSquareUpdateTime;
-            squareRotation += (30 * delta) / 1000.0;
-
-            mvRotate(squareRotation, [2, 1, 1]);
+//            var squareRotation = 0.0;
+//            var currentTime = Date.now();
+//            var lastSquareUpdateTime = 1;
+//            var delta = currentTime - lastSquareUpdateTime;
+//            squareRotation += (30 * delta) / 1000.0;
+//
+//            mvRotate(squareRotation, [0, 0, 1]);
 
             drawSquareWithOffset([squareXOffset, squareYOffset, squareZOffset]);
-            drawSquareWithOffset([squareXOffset + 2, squareYOffset, squareZOffset]);
+            // drawSquareWithOffset([squareXOffset + 2, squareYOffset, squareZOffset]);
 
         }
 
@@ -208,6 +215,11 @@
             // Set the colors attribute for the vertices.
             gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
             gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, cubeTexture);
+            gl.uniform1i(gl.getUniformLocation(shaderProgram, "uSampler"), 0);
 
             // Draw the square.
             setMatrixUniforms();
@@ -264,31 +276,33 @@
     </script>
 
     <script id="shader-fs" type="x-shader/x-fragment">
-        varying lowp vec4 vColor;
+          varying highp vec2 vTextureCoord;
 
-        void main(void) {
-            gl_FragColor = vColor;
-        }
+          uniform sampler2D uSampler;
+
+          void main(void) {
+            gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+          }
     </script>
 
     <script id="shader-vs" type="x-shader/x-vertex">
-      attribute vec3 aVertexPosition;
-      attribute vec4 aVertexColor;
+        attribute vec3 aVertexPosition;
+        attribute vec2 aTextureCoord;
 
-      uniform mat4 uMVMatrix;
-      uniform mat4 uPMatrix;
+        uniform mat4 uMVMatrix;
+        uniform mat4 uPMatrix;
 
-      varying lowp vec4 vColor;
+        varying highp vec2 vTextureCoord;
 
-      void main(void) {
-        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-        vColor = aVertexColor;
-      }
+        void main(void) {
+            gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+            vTextureCoord = aTextureCoord;
+        }
     </script>
 
 </head>
 <body onload="start()">
-<canvas id="glcanvas" width="2400" height="1400">
+<canvas id="glcanvas" width="900" height="600">
     Your browser doesn't appear to support the
     <code>&lt;canvas&gt;</code> element.
 </canvas>
