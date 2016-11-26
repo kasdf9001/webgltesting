@@ -67,12 +67,14 @@
 
             initShaders();
             initBuffers();
+            initTextures();
 
             initTextures();
 
             setInterval(sceneOne, 15);
 
         }
+
 
         function initTextures() {
             cubeTexture = gl.createTexture();
@@ -176,6 +178,10 @@
                     ];
 
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
+            squareVerticesColorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
+
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
         }
 
@@ -213,8 +219,8 @@
             gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
             // Set the colors attribute for the vertices.
-            gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
-            gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+            //gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
+            //gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
 
 
             gl.activeTexture(gl.TEXTURE0);
@@ -223,7 +229,7 @@
 
             // Draw the square.
             setMatrixUniforms();
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         }
 
